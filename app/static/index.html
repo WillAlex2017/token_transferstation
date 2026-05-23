@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Token Transfer Station</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f13; color: #e1e1e6; min-height: 100vh; }
+.container { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+header { text-align: center; padding: 32px 0 24px; }
+header h1 { font-size: 22px; font-weight: 700; background: linear-gradient(135deg, #6366f1, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+header p { color: #666; font-size: 13px; margin-top: 2px; }
+.tabs { display: flex; gap: 4px; background: #1a1a24; border-radius: 12px; padding: 4px; margin-bottom: 20px; overflow-x: auto; }
+.tab { flex: 1; min-width: 80px; text-align: center; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 500; color: #888; transition: all .2s; border: none; background: none; white-space: nowrap; }
+.tab.active { background: #2a2a3a; color: #e1e1e6; }
+.card { background: #1a1a24; border-radius: 12px; padding: 20px; margin-bottom: 14px; border: 1px solid #22222e; }
+.card h2 { font-size: 15px; font-weight: 600; margin-bottom: 14px; color: #c4c4d4; }
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 12px; font-weight: 500; color: #999; margin-bottom: 4px; }
+.form-group input, .form-group textarea, .form-group select { width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #2a2a3a; background: #14141e; color: #e1e1e6; font-size: 13px; outline: none; }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: #6366f1; }
+.form-group textarea { font-family: 'SF Mono', Monaco, monospace; font-size: 12px; resize: vertical; min-height: 50px; }
+.form-row { display: flex; gap: 10px; }
+.form-row .form-group { flex: 1; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; border: none; cursor: pointer; }
+.btn-primary { background: #6366f1; color: #fff; }
+.btn-primary:hover { background: #5558e6; }
+.btn-secondary { background: #2a2a3a; color: #ccc; }
+.btn-secondary:hover { background: #33334a; }
+.btn-danger { background: #ef4444; color: #fff; }
+.btn-success { background: #059669; color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.btn-block { width: 100%; }
+.alert { padding: 10px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 10px; display: none; }
+.alert-success { display: block; background: #065f4620; border: 1px solid #05966940; color: #6ee7b7; }
+.alert-error { display: block; background: #991b1b20; border: 1px solid #dc262640; color: #fca5a5; }
+.response-box { background: #0d0d14; border-radius: 8px; padding: 12px; margin-top: 10px; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 250px; overflow: auto; display: none; border: 1px solid #1a1a24; color: #a1a1aa; }
+.key-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #22222e; }
+.key-item:last-child { border-bottom: none; }
+.key-value { font-family: 'SF Mono', Monaco, monospace; font-size: 11px; color: #a1a1aa; word-break: break-all; }
+.key-name { font-size: 12px; font-weight: 500; margin-bottom: 2px; }
+.key-actions { display: flex; gap: 5px; flex-shrink: 0; }
+.usage-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #1a1a24; font-size: 12px; }
+.usage-item:last-child { border-bottom: none; }
+.usage-model { color: #a1a1aa; }
+.usage-cost { color: #f59e0b; }
+.stat { text-align: center; padding: 16px; }
+.stat-num { font-size: 32px; font-weight: 700; color: #6366f1; }
+.stat-label { font-size: 12px; color: #888; margin-top: 2px; }
+.model-tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 500; }
+.model-online { background: #065f4620; color: #6ee7b7; border: 1px solid #05966940; }
+.hidden { display: none; }
+@media (max-width: 600px) {
+  .container { padding: 16px 10px; }
+  .form-row { flex-direction: column; gap: 0; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Token Transfer Station</h1>
+    <p>LLM API Token 中转站 — 统一接入国内外大模型</p>
+  </header>
+
+  <div id="alertBox" class="alert"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="auth">登录</button>
+    <button class="tab" data-tab="dashboard">仪表盘</button>
+    <button class="tab" data-tab="keys">API Keys</button>
+    <button class="tab" data-tab="chat">测试</button>
+    <button class="tab" data-tab="usage">用量</button>
+  </div>
+
+  <div id="authTab" class="tab-content">
+    <div class="card">
+      <h2>注册</h2>
+      <div class="form-group"><label>邮箱</label><input id="regEmail" type="email" placeholder="your@email.com"></div>
+      <div class="form-group"><label>名称</label><input id="regName" placeholder="昵称"></div>
+      <div class="form-group"><label>密码</label><input id="regPassword" type="password" placeholder="至少 6 位"></div>
+      <button class="btn btn-primary btn-block" onclick="register()">注册</button>
+    </div>
+    <div class="card">
+      <h2>登录</h2>
+      <div class="form-group"><label>邮箱</label><input id="loginEmail" type="email" placeholder="your@email.com"></div>
+      <div class="form-group"><label>密码</label><input id="loginPassword" type="password" placeholder="密码"></div>
+      <button class="btn btn-primary btn-block" onclick="login()">登录</button>
+    </div>
+    <div id="authInfo" class="hidden" style="margin-top:10px;text-align:center;color:#888;font-size:12px;"></div>
+  </div>
+
+  <div id="dashboardTab" class="tab-content hidden">
+    <div class="form-row">
+      <div class="card" style="flex:1"><div class="stat"><div class="stat-num" id="dashBalance">0.00</div><div class="stat-label">余额 (¥)</div></div></div>
+      <div class="card" style="flex:1"><div class="stat"><div class="stat-num" id="dashKeys">0</div><div class="stat-label">API Keys</div></div></div>
+      <div class="card" style="flex:1"><div class="stat"><div class="stat-num" id="dashModels">0</div><div class="stat-label">可用模型</div></div></div>
+    </div>
+    <div class="card">
+      <h2>充值</h2>
+      <div class="form-row">
+        <div class="form-group"><input id="topupAmount" type="number" placeholder="金额" value="10" min="1" step="1"></div>
+        <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:12px">
+          <button class="btn btn-success" onclick="topup(10)">¥10</button>
+          <button class="btn btn-success" onclick="topup(50)">¥50</button>
+          <button class="btn btn-success" onclick="topup(100)">¥100</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>模型定价</h2>
+      <div id="pricingList" style="font-size:12px;color:#888;"></div>
+    </div>
+  </div>
+
+  <div id="keysTab" class="tab-content hidden">
+    <div class="card">
+      <h2>创建 API Key</h2>
+      <div class="form-group"><label>名称</label><input id="keyName" placeholder="例如：开发环境" value="Default"></div>
+      <button class="btn btn-primary btn-block" onclick="createApiKey()">创建</button>
+    </div>
+    <div class="card">
+      <h2>API Keys <span class="badge" id="keyCount">0</span></h2>
+      <div id="keyList"><div style="color:#666;font-size:12px;">暂无 API Key</div></div>
+    </div>
+  </div>
+
+  <div id="chatTab" class="tab-content hidden">
+    <div class="card">
+      <h2>聊天测试 <span style="font-weight:400;color:#888;font-size:12px;">— 调用真实上游模型</span></h2>
+      <div class="form-group"><label>模型</label>
+        <select id="chatModel"></select>
+      </div>
+      <div class="form-group"><label>消息 (JSON 数组)</label><textarea id="chatMessages" rows="2">[{"role": "user", "content": "你好"}]</textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>认证方式</label>
+          <select id="chatAuthType">
+            <option value="jwt">JWT Token</option>
+            <option value="apikey">API Key</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Token / Key</label><input id="chatToken" placeholder="登录后自动填充"></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="testChat()">发送请求</button>
+      <div id="chatResponse" class="response-box"></div>
+    </div>
+    <div class="card">
+      <h2>可用模型</h2>
+      <div id="modelList" style="font-size:12px;color:#888;"></div>
+    </div>
+  </div>
+
+  <div id="usageTab" class="tab-content hidden">
+    <div class="card">
+      <h2>最近用量 <span class="badge" id="usageCount">0</span></h2>
+      <div id="usageList"><div style="color:#666;font-size:12px;">暂无使用记录</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = '';
+let currentToken = localStorage.getItem('jwt_token') || '';
+
+function $(id) { return document.getElementById(id); }
+function showAlert(msg, type) {
+  const el = $('alertBox');
+  el.textContent = msg;
+  el.className = 'alert alert-' + type;
+  if (type !== 'hide') setTimeout(() => { el.className = 'alert'; el.style.display = 'none'; }, 3500);
+}
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...opts.headers };
+  if (opts.auth && currentToken) headers['Authorization'] = 'Bearer ' + currentToken;
+  try {
+    const res = await fetch(API_BASE + path, { ...opts, headers });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || (typeof data === 'object' ? JSON.stringify(data) : data));
+    return data;
+  } catch (e) {
+    if (!opts.silent) showAlert(e.message, 'error');
+    throw e;
+  }
+}
+
+async function register() {
+  const email = $('regEmail').value.trim(), name = $('regName').value.trim(), pass = $('regPassword').value;
+  if (!email || !name || !pass) return showAlert('请填写完整信息', 'error');
+  try {
+    await api('/v1/user/register', { method: 'POST', body: JSON.stringify({ email, name, password: pass }) });
+    showAlert('注册成功！请登录', 'success');
+    $('loginEmail').value = email;
+    $('loginPassword').value = pass;
+  } catch {}
+}
+
+async function login() {
+  const email = $('loginEmail').value.trim(), pass = $('loginPassword').value;
+  if (!email || !pass) return showAlert('请填写邮箱和密码', 'error');
+  try {
+    const data = await api('/v1/user/login', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
+    currentToken = data.access_token;
+    localStorage.setItem('jwt_token', currentToken);
+    showAlert('登录成功', 'success');
+    $('chatToken').value = currentToken;
+    onLogin();
+  } catch {}
+}
+
+function onLogin() {
+  loadDashboard();
+  loadKeys();
+  loadModels();
+  loadPricing();
+  loadUsage();
+  // Switch to dashboard tab
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('[data-tab="dashboard"]').classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+  $('dashboardTab').classList.remove('hidden');
+}
+
+async function loadDashboard() {
+  try {
+    const p = await api('/v1/user/profile', { auth: true, silent: true });
+    $('dashBalance').textContent = p.balance.toFixed(2);
+    if (p.balance < 1) $('dashBalance').style.color = '#ef4444';
+    else $('dashBalance').style.color = '#6366f1';
+  } catch { $('dashBalance').textContent = '--'; }
+  try {
+    const k = await api('/v1/user/api-keys', { auth: true, silent: true });
+    $('dashKeys').textContent = k.length;
+  } catch { $('dashKeys').textContent = '--'; }
+  try {
+    const m = await api('/v1/models', { silent: true });
+    $('dashModels').textContent = m.data.length;
+  } catch { $('dashModels').textContent = '--'; }
+}
+
+async function loadPricing() {
+  try {
+    const models = await api('/v1/models');
+    const el = $('pricingList');
+    el.innerHTML = '<table style="width:100%;border-collapse:collapse"><tr style="color:#666;font-size:11px"><th style="text-align:left;padding:4px">模型</th><th style="text-align:right;padding:4px">输入 (¥/1K)</th><th style="text-align:right;padding:4px">输出 (¥/1K)</th></tr>' + models.data.map(m => '<tr><td style="padding:4px">' + escHtml(m.id) + '</td><td style="text-align:right;color:#a1a1aa;padding:4px">--</td><td style="text-align:right;color:#a1a1aa;padding:4px">--</td></tr>').join('') + '</table>';
+  } catch {}
+}
+
+async function topup(amount) {
+  const a = $('topupAmount').value ? parseFloat($('topupAmount').value) : amount;
+  if (!a || a <= 0) return showAlert('请输入有效金额', 'error');
+  try {
+    const data = await api('/v1/user/topup', { method: 'POST', body: JSON.stringify({ amount: a }), auth: true });
+    showAlert('充值成功！余额: ¥' + data.balance.toFixed(2), 'success');
+    loadDashboard();
+  } catch {}
+}
+
+async function createApiKey() {
+  const name = $('keyName').value.trim() || 'Default';
+  try {
+    const data = await api('/v1/user/api-keys', { method: 'POST', body: JSON.stringify({ name }), auth: true });
+    showAlert('API Key 已创建: ' + data.key, 'success');
+    loadKeys();
+    loadDashboard();
+  } catch {}
+}
+
+async function loadKeys() {
+  try {
+    const data = await api('/v1/user/api-keys', { auth: true, silent: true });
+    $('keyCount').textContent = data.length;
+    const el = $('keyList');
+    if (!data.length) { el.innerHTML = '<div style="color:#666;font-size:12px;">暂无 API Key</div>'; return; }
+    el.innerHTML = data.map(k => '<div class="key-item"><div style="min-width:0;flex:1"><div class="key-name">' + escHtml(k.name) + '</div><div class="key-value">' + escHtml(k.key) + '</div></div><div class="key-actions"><button class="btn btn-sm btn-secondary" onclick="copyKey(\'' + k.key + '\')">复制</button><button class="btn btn-sm btn-danger" onclick="revokeKey(\'' + k.id + '\')">吊销</button></div></div>').join('');
+  } catch { $('keyCount').textContent = '--'; }
+}
+
+async function revokeKey(id) {
+  if (!confirm('确定吊销此 API Key？')) return;
+  try {
+    await api('/v1/user/api-keys/' + id, { method: 'DELETE', auth: true });
+    showAlert('已吊销', 'success');
+    loadKeys();
+    loadDashboard();
+  } catch {}
+}
+
+async function loadUsage() {
+  try {
+    const data = await api('/v1/user/usage', { auth: true, silent: true });
+    $('usageCount').textContent = data.length;
+    const el = $('usageList');
+    if (!data.length) { el.innerHTML = '<div style="color:#666;font-size:12px;">暂无使用记录</div>'; return; }
+    el.innerHTML = data.map(u => '<div class="usage-item"><span class="usage-model">' + u.total_tokens + ' tokens</span><span class="usage-cost">¥' + u.cost.toFixed(6) + '</span></div>').join('');
+  } catch { $('usageCount').textContent = '--'; }
+}
+
+function copyKey(key) { navigator.clipboard.writeText(key).then(() => showAlert('已复制', 'success')); }
+
+async function loadModels() {
+  try {
+    const data = await api('/v1/models', { silent: true });
+    const models = data.data;
+    // model list in the card
+    const listEl = $('modelList');
+    listEl.innerHTML = models.map(m => '<div style="padding:5px 0;display:flex;justify-content:space-between;align-items:center"><span>' + escHtml(m.id) + '</span><span class="model-tag model-online">active</span></div>').join('');
+    // model select dropdown
+    const sel = $('chatModel');
+    const currentVal = sel.value;
+    sel.innerHTML = models.map(m => '<option value="' + escHtml(m.id) + '">' + escHtml(m.id) + '</option>').join('');
+    if (currentVal && models.some(m => m.id === currentVal)) sel.value = currentVal;
+  } catch {}
+}
+
+async function testChat() {
+  const model = $('chatModel').value, msgs = $('chatMessages').value, token = $('chatToken').value.trim();
+  const el = $('chatResponse');
+  if (!token) return showAlert('请输入 Token 或 API Key', 'error');
+  let msgsArr;
+  try { msgsArr = JSON.parse(msgs); } catch { return showAlert('消息格式错误，需要 JSON 数组', 'error'); }
+  el.style.display = 'block'; el.textContent = '请求中...';
+  try {
+    const res = await fetch(API_BASE + '/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ model, messages: msgsArr, stream: false })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+    el.textContent = JSON.stringify(data, null, 2);
+    // refresh balance after call
+    loadDashboard();
+    loadUsage();
+  } catch (e) { el.textContent = '错误: ' + e.message; }
+}
+
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    $(tab.dataset.tab + 'Tab').classList.remove('hidden');
+    if (currentToken) {
+      if (tab.dataset.tab === 'dashboard') loadDashboard();
+      if (tab.dataset.tab === 'keys') loadKeys();
+      if (tab.dataset.tab === 'usage') loadUsage();
+    }
+  });
+});
+
+// Auto login
+if (currentToken) {
+  $('chatToken').value = currentToken;
+  onLogin();
+}
+</script>
+</body>
+</html>

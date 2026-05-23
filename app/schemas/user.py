@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 
 class UserRegister(BaseModel):
@@ -29,6 +29,10 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class CreateApiKeyRequest(BaseModel):
+    name: str = "Default"
+
+
 class ApiKeyResponse(BaseModel):
     id: str
     key: str
@@ -39,3 +43,7 @@ class ApiKeyResponse(BaseModel):
 
 class BalanceResponse(BaseModel):
     balance: float
+
+
+class TopUpRequest(BaseModel):
+    amount: float

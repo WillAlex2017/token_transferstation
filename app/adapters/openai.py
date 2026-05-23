@@ -15,7 +15,8 @@ class OpenAIAdapter(BaseAdapter):
         stream: bool = False,
         **kwargs,
     ):
-        url = f"{self.base_url or 'https://api.openai.com'}/v1/chat/completions"
+        base = self.base_url.rstrip("/") if self.base_url else "https://api.openai.com"
+        url = f"{base}/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -30,9 +31,13 @@ class OpenAIAdapter(BaseAdapter):
             payload["max_tokens"] = max_tokens
         payload.update(kwargs)
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             if stream:
                 async with client.stream("POST", url, json=payload, headers=headers) as response:
+                    if response.status_code != 200:
+                        body = await response.aread()
+                        yield {"type": "error", "data": {"status": response.status_code, "detail": body.decode()}}
+                        return
                     async for line in response.aiter_lines():
                         if line.startswith("data: "):
                             data = line[6:]
@@ -42,11 +47,18 @@ class OpenAIAdapter(BaseAdapter):
                                 yield {"type": "chunk", "data": json.loads(data)}
             else:
                 resp = await client.post(url, json=payload, headers=headers)
-                resp.raise_for_status()
+                if resp.status_code != 200:
+                    try:
+                        detail = resp.json()
+                    except Exception:
+                        detail = resp.text
+                    yield {"type": "error", "data": {"status": resp.status_code, "detail": detail}}
+                    return
                 yield {"type": "complete", "data": resp.json()}
 
     async def embeddings(self, input: list[str], model: str, **kwargs) -> list[list[float]]:
-        url = f"{self.base_url or 'https://api.openai.com'}/v1/embeddings"
+        base = self.base_url.rstrip("/") if self.base_url else "https://api.openai.com"
+        url = f"{base}/v1/embeddings"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
