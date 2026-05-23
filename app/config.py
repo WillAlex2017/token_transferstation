@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     qwen_api_key: str = ""
     gemini_api_key: str = ""
     nvidia_api_key: str = ""
+    xai_api_key: str = ""
+    groq_api_key: str = ""
+    baichuan_api_key: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

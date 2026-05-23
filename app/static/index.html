@@ -72,6 +72,7 @@ header p { color: #666; font-size: 13px; margin-top: 2px; }
     <button class="tab" data-tab="keys">API Keys</button>
     <button class="tab" data-tab="chat">测试</button>
     <button class="tab" data-tab="usage">用量</button>
+    <button class="tab hidden" data-tab="admin" id="adminTabBtn">管理</button>
   </div>
 
   <div id="authTab" class="tab-content">
@@ -157,6 +158,30 @@ header p { color: #666; font-size: 13px; margin-top: 2px; }
       <div id="usageList"><div style="color:#666;font-size:12px;">暂无使用记录</div></div>
     </div>
   </div>
+
+  <div id="adminTab" class="tab-content hidden">
+    <div class="card">
+      <h2>系统概览</h2>
+      <div class="form-row" id="adminStats">
+        <div style="flex:1;text-align:center;padding:8px"><div style="font-size:28px;font-weight:700;color:#6366f1" id="statUsers">-</div><div style="font-size:11px;color:#888;margin-top:2px">用户数</div></div>
+        <div style="flex:1;text-align:center;padding:8px"><div style="font-size:28px;font-weight:700;color:#6366f1" id="statCalls">-</div><div style="font-size:11px;color:#888;margin-top:2px">总调用</div></div>
+        <div style="flex:1;text-align:center;padding:8px"><div style="font-size:28px;font-weight:700;color:#f59e0b" id="statProfit">-</div><div style="font-size:11px;color:#888;margin-top:2px">总利润</div></div>
+        <div style="flex:1;text-align:center;padding:8px"><div style="font-size:28px;font-weight:700;color:#6ee7b7" id="statKeys">-</div><div style="font-size:11px;color:#888;margin-top:2px">活跃密钥</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>用户管理</h2>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#888"><th style="text-align:left;padding:6px">邮箱</th><th style="text-align:left;padding:6px">余额</th><th style="text-align:left;padding:6px">角色</th><th style="text-align:left;padding:6px">状态</th><th style="text-align:left;padding:6px">操作</th></tr></thead><tbody id="adminUsersList"><tr><td style="padding:12px;text-align:center;color:#666" colspan="5">加载中...</td></tr></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>模型管理</h2>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#888"><th style="text-align:left;padding:6px">模型</th><th style="text-align:left;padding:6px">提供商</th><th style="text-align:left;padding:6px">上游</th><th style="text-align:left;padding:6px">售价(输入)</th><th style="text-align:left;padding:6px">售价(输出)</th><th style="text-align:left;padding:6px">状态</th><th style="text-align:left;padding:6px">操作</th></tr></thead><tbody id="adminModelsList"><tr><td style="padding:12px;text-align:center;color:#666" colspan="7">加载中...</td></tr></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>用量日志</h2>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#888"><th style="text-align:left;padding:6px">用户</th><th style="text-align:left;padding:6px">Tokens</th><th style="text-align:left;padding:6px">成本</th><th style="text-align:left;padding:6px">利润</th><th style="text-align:left;padding:6px">时间</th></tr></thead><tbody id="adminUsageList"><tr><td style="padding:12px;text-align:center;color:#666" colspan="5">加载中...</td></tr></tbody></table></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -215,6 +240,15 @@ function onLogin() {
   loadModels();
   loadPricing();
   loadUsage();
+  // Check admin
+  api('/v1/user/profile', { auth: true, silent: true }).then(p => {
+    if (p.role === 'admin') {
+      $('adminTabBtn').classList.remove('hidden');
+      loadAdmin();
+    } else {
+      $('adminTabBtn').classList.add('hidden');
+    }
+  }).catch(() => {});
   // Switch to dashboard tab
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelector('[data-tab="dashboard"]').classList.add('active');
@@ -299,6 +333,60 @@ async function loadUsage() {
 
 function copyKey(key) { navigator.clipboard.writeText(key).then(() => showAlert('已复制', 'success')); }
 
+async function loadAdmin() {
+  try {
+    const stats = await api('/v1/admin/stats', { auth: true, silent: true });
+    $('statUsers').textContent = stats.user_count;
+    $('statCalls').textContent = stats.total_calls;
+    $('statProfit').textContent = '¥' + stats.total_profit.toFixed(2);
+    $('statKeys').textContent = stats.active_keys;
+  } catch {}
+  try {
+    const users = await api('/v1/admin/users', { auth: true, silent: true });
+    const el = $('adminUsersList');
+    if (!users.length) { el.innerHTML = '<tr><td style="padding:12px;text-align:center;color:#666" colspan="5">暂无用户</td></tr>'; return; }
+    el.innerHTML = users.map(u => '<tr><td style="padding:6px">' + escHtml(u.email) + '</td><td style="padding:6px;color:#f59e0b">¥' + u.balance.toFixed(2) + '</td><td style="padding:6px">' + escHtml(u.role) + '</td><td style="padding:6px">' + (u.status === 'active' ? '<span style="color:#6ee7b7">启用</span>' : '<span style="color:#fca5a5">禁用</span>') + '</td><td style="padding:6px;display:flex;gap:4px">' + (u.role !== 'admin' ? '<button class="btn btn-sm ' + (u.status === 'active' ? 'btn-danger' : 'btn-success') + '" onclick="toggleUser(\'' + u.id + '\',\'' + (u.status === 'active' ? 'disabled' : 'active') + '\')">' + (u.status === 'active' ? '禁用' : '启用') + '</button><button class="btn btn-sm btn-primary" onclick="adminTopup(\'' + u.id + '\')">充值</button>' : '<span style="color:#888">-</span>') + '</td></tr>').join('');
+  } catch {}
+  try {
+    const models = await api('/v1/admin/models', { auth: true, silent: true });
+    const el = $('adminModelsList');
+    if (!models.length) { el.innerHTML = '<tr><td style="padding:12px;text-align:center;color:#666" colspan="7">暂无模型</td></tr>'; return; }
+    el.innerHTML = models.map(m => '<tr><td style="padding:6px">' + escHtml(m.name) + '</td><td style="padding:6px">' + escHtml(m.provider) + '</td><td style="padding:6px;color:#a1a1aa;font-size:11px">' + escHtml(m.upstream_model) + '</td><td style="padding:6px">¥' + m.sell_input_price.toFixed(7) + '</td><td style="padding:6px">¥' + m.sell_output_price.toFixed(7) + '</td><td style="padding:6px">' + (m.status === 'active' ? '<span style="color:#6ee7b7">启用</span>' : '<span style="color:#fca5a5">禁用</span>') + '</td><td style="padding:6px"><button class="btn btn-sm ' + (m.status === 'active' ? 'btn-danger' : 'btn-success') + '" onclick="toggleModel(\'' + m.id + '\',\'' + (m.status === 'active' ? 'disabled' : 'active') + '\')">' + (m.status === 'active' ? '禁用' : '启用') + '</button></td></tr>').join('');
+  } catch {}
+  try {
+    const logs = await api('/v1/admin/usage', { auth: true, silent: true });
+    const el = $('adminUsageList');
+    if (!logs.length) { el.innerHTML = '<tr><td style="padding:12px;text-align:center;color:#666" colspan="5">暂无记录</td></tr>'; return; }
+    el.innerHTML = logs.map(l => '<tr><td style="padding:6px;font-size:11px">' + escHtml(l.user_id.slice(0,8)) + '...</td><td style="padding:6px">' + l.total_tokens + '</td><td style="padding:6px;color:#fca5a5">¥' + l.cost.toFixed(6) + '</td><td style="padding:6px;color:#6ee7b7">¥' + l.profit.toFixed(6) + '</td><td style="padding:6px;font-size:11px;color:#888">' + new Date(l.created_at).toLocaleString() + '</td></tr>').join('');
+  } catch {}
+}
+
+async function toggleUser(userId, newStatus) {
+  try {
+    await api('/v1/admin/users/' + userId + '/status', { method: 'PUT', body: JSON.stringify({ status: newStatus }), auth: true });
+    showAlert('状态已更新', 'success');
+    loadAdmin();
+  } catch {}
+}
+
+async function adminTopup(userId) {
+  const amount = prompt('充值金额 (¥)');
+  if (!amount || parseFloat(amount) <= 0) return;
+  try {
+    await api('/v1/admin/users/' + userId + '/topup', { method: 'POST', body: JSON.stringify({ amount: parseFloat(amount) }), auth: true });
+    showAlert('充值成功', 'success');
+    loadAdmin();
+  } catch {}
+}
+
+async function toggleModel(modelId, newStatus) {
+  try {
+    await api('/v1/admin/models/' + modelId + '/status', { method: 'PUT', body: JSON.stringify({ status: newStatus }), auth: true });
+    showAlert('模型状态已更新', 'success');
+    loadAdmin();
+  } catch {}
+}
+
 async function loadModels() {
   try {
     const data = await api('/v1/models', { silent: true });
@@ -349,6 +437,7 @@ document.querySelectorAll('.tab').forEach(tab => {
       if (tab.dataset.tab === 'dashboard') loadDashboard();
       if (tab.dataset.tab === 'keys') loadKeys();
       if (tab.dataset.tab === 'usage') loadUsage();
+      if (tab.dataset.tab === 'admin') loadAdmin();
     }
   });
 });

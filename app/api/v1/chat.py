@@ -27,6 +27,9 @@ PROVIDER_API_KEY_MAP = {
     "qwen": ("qwen_api_key", None),
     "google": ("gemini_api_key", None),
     "nvidia": ("nvidia_api_key", "https://integrate.api.nvidia.com"),
+    "xai": ("xai_api_key", "https://api.x.ai"),
+    "groq": ("groq_api_key", "https://api.groq.com/openai/v1"),
+    "baichuan": ("baichuan_api_key", "https://api.baichuan-ai.com/v1"),
 }
 
 
