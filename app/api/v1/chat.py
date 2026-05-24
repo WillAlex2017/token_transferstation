@@ -11,6 +11,7 @@ from starlette.responses import StreamingResponse
 
 from app.api.deps import get_current_user
 from app.adapters.openai import OpenAIAdapter
+from app.adapters.gemini import GeminiAdapter
 from app.config import settings
 from app.database import get_db
 from app.models.model_config import ModelConfig
@@ -25,11 +26,12 @@ PROVIDER_API_KEY_MAP = {
     "anthropic": ("anthropic_api_key", None),
     "deepseek": ("deepseek_api_key", "https://api.deepseek.com"),
     "qwen": ("qwen_api_key", None),
-    "google": ("gemini_api_key", None),
+    "google": ("gemini_api_key", "https://generativelanguage.googleapis.com/v1beta"),
     "nvidia": ("nvidia_api_key", "https://integrate.api.nvidia.com"),
     "xai": ("xai_api_key", "https://api.x.ai"),
     "groq": ("groq_api_key", "https://api.groq.com/openai/v1"),
     "baichuan": ("baichuan_api_key", "https://api.baichuan-ai.com/v1"),
+    "zhipu": ("zhipu_api_key", "https://open.bigmodel.cn/api/paas/v4"),
 }
 
 
@@ -70,6 +72,12 @@ async def log_and_bill(
     db.add(log)
 
 
+def get_adapter(api_key: str, base_url: str | None, provider: str):
+    if provider == "google":
+        return GeminiAdapter(api_key=api_key, base_url=base_url)
+    return OpenAIAdapter(api_key=api_key, base_url=base_url)
+
+
 @router.post("/chat/completions")
 async def chat_completion(
     body: ChatCompletionRequest,
@@ -98,7 +106,7 @@ async def chat_completion(
 
 
 async def _chat_non_stream(body, model, upstream_key, base_url, user, db, api_key_id):
-    adapter = OpenAIAdapter(api_key=upstream_key, base_url=base_url)
+    adapter = get_adapter(upstream_key, base_url, model.provider)
     gen = adapter.chat_completion(
         messages=[m.model_dump() for m in body.messages],
         model=model.upstream_model,
@@ -150,7 +158,7 @@ async def _chat_non_stream(body, model, upstream_key, base_url, user, db, api_ke
 
 
 async def _chat_stream(body, model, upstream_key, base_url, user, db, api_key_id):
-    adapter = OpenAIAdapter(api_key=upstream_key, base_url=base_url)
+    adapter = get_adapter(upstream_key, base_url, model.provider)
 
     async def generate():
         gen = adapter.chat_completion(

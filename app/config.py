@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     xai_api_key: str = ""
     groq_api_key: str = ""
     baichuan_api_key: str = ""
+    zhipu_api_key: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

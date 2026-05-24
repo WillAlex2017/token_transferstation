@@ -34,6 +34,9 @@ SEED_MODELS = [
     ModelConfig(name="gemma2-9b-it", provider="groq", upstream_model="gemma2-9b-it", input_price=0.00000009, output_price=0.00000012, sell_input_price=0.00000012, sell_output_price=0.00000015),
     ModelConfig(name="baichuan4", provider="baichuan", upstream_model="Baichuan4", input_price=0.0000001, output_price=0.0000004, sell_input_price=0.00000015, sell_output_price=0.0000006),
     ModelConfig(name="baichuan-turbo", provider="baichuan", upstream_model="Baichuan4-Turbo", input_price=0.00000009, output_price=0.00000012, sell_input_price=0.00000012, sell_output_price=0.00000015),
+    ModelConfig(name="glm-4-flash", provider="zhipu", upstream_model="glm-4-flash", input_price=0.0000001, output_price=0.0000001, sell_input_price=0.00000015, sell_output_price=0.00000015),
+    ModelConfig(name="glm-4-plus", provider="zhipu", upstream_model="glm-4-plus", input_price=0.0000005, output_price=0.0000005, sell_input_price=0.0000007, sell_output_price=0.0000007),
+    ModelConfig(name="glm-4-air", provider="zhipu", upstream_model="glm-4-air", input_price=0.00000025, output_price=0.00000025, sell_input_price=0.00000035, sell_output_price=0.00000035),
 ]
 
 
