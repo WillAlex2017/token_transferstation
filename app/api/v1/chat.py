@@ -12,6 +12,7 @@ from starlette.responses import StreamingResponse
 from app.api.deps import get_current_user
 from app.adapters.openai import OpenAIAdapter
 from app.adapters.gemini import GeminiAdapter
+from app.adapters.zhipu import ZhipuAdapter
 from app.config import settings
 from app.database import get_db
 from app.models.model_config import ModelConfig
@@ -23,14 +24,10 @@ router = APIRouter(prefix="/v1", tags=["chat"])
 
 PROVIDER_API_KEY_MAP = {
     "openai": ("openai_api_key", None),
-    "anthropic": ("anthropic_api_key", None),
     "deepseek": ("deepseek_api_key", "https://api.deepseek.com"),
-    "qwen": ("qwen_api_key", None),
     "google": ("gemini_api_key", "https://generativelanguage.googleapis.com/v1beta"),
     "nvidia": ("nvidia_api_key", "https://integrate.api.nvidia.com"),
     "xai": ("xai_api_key", "https://api.x.ai"),
-    "groq": ("groq_api_key", "https://api.groq.com/openai/v1"),
-    "baichuan": ("baichuan_api_key", "https://api.baichuan-ai.com/v1"),
     "zhipu": ("zhipu_api_key", "https://open.bigmodel.cn/api/paas/v4"),
 }
 
@@ -75,6 +72,8 @@ async def log_and_bill(
 def get_adapter(api_key: str, base_url: str | None, provider: str):
     if provider == "google":
         return GeminiAdapter(api_key=api_key, base_url=base_url)
+    if provider == "zhipu":
+        return ZhipuAdapter(api_key=api_key, base_url=base_url)
     return OpenAIAdapter(api_key=api_key, base_url=base_url)
 
 
